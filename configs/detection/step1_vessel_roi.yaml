@@ -1,0 +1,19 @@
+# Step1 - vessel ROI detection (RF-DETR nano). Submitted model (fold0).
+#
+# The 0.625 mm whole-head volume is projected to coronal and sagittal MIPs
+# (modality-aware: MRA = percentile MIP; CTA = HU window [100, 500] + central-slab
+# MIP of +/-30 slices, see src/detection/vessel_roi_preproc.py). One
+# "vessel_region" box is detected per projection and the two boxes are fused into
+# a 3D ROI by scripts/infer_vessel_roi_detection.py. mAP@50 = 0.955 on fold0-val.
+#
+# Data: scripts/make_vessel_roi_detection_data.py + scripts/convert_annotations_to_coco.py
+# Train: python scripts/train_detection.py --config configs/detection/step1_vessel_roi.yaml --fold 0
+
+seed: 42
+deterministic: false
+dataset: {type: coco_detection, coco_root: data/step1_vessel_roi/coco}
+model: {type: rfdetr_nano, num_classes: 1, pretrained: true, resolution: 384}
+training: {epochs: 40, batch_size: 8, lr: 0.0001, num_workers: 8}
+rfdetr_training: {use_ema: true, multi_scale: false, expanded_scales: false, run_test: true, tensorboard: false,
+  wandb: false}
+output: {root_path: results/step1_vessel_roi, exp_name: step1_vessel_roi_rfdetr_nano}

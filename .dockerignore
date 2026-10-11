@@ -1,0 +1,17 @@
+.venv/
+.git/
+data
+results
+docs/
+tests/
+.pytest_cache/
+*.pth
+*.ckpt
+*.tar.gz
+__pycache__/
+*.pyc
+uv.lock
+
+# Keep weights and local test fixtures out of the build context (hundreds of MB).
+docker/model/
+docker/test/

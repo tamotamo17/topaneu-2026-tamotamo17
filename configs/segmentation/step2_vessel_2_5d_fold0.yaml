@@ -1,0 +1,99 @@
+# Step2 - 37-class vessel segmentation, 2.5D. Submitted model (fold0).
+#
+# SMP U-Net (EfficientNet-B3), 5 adjacent slices in, auxiliary binary
+# (vessel vs background) head. Focal-Tversky + CE + Dice with per-class weights;
+# random left-right flip with R/L label swap. Trained on the 300^3 crops at
+# 0.4 mm. Best val_dice 0.7788 (epoch 48 of 50).
+#
+# Its predictions on every case (data/vessel_hr/pred_fold0) are the vessel
+# auxiliary input of the fold0 Step3 detector and the basis of the anatomical
+# location labelling.
+#
+# Train: python scripts/train_segmentation.py --config configs/segmentation/step2_vessel_2_5d_fold0.yaml --fold 0
+
+seed: 42
+deterministic: false
+preprocessing:
+  normalize_before_aug: true
+  image_size: {x: 320, y: 320, mode: pad}
+  normalization:
+    type: percentile
+    percentile: {lower_percentile: 0.5, upper_percentile: 99.5}
+augmentation:
+  Affine:
+    scale: [0.8, 1.2]
+    rotate: [-30, 30]
+    translate_percent: [0.0, 0.0625]
+    p: 0.5
+  ElasticTransform: {alpha: 60, sigma: 12, p: 0.2}
+  GridDistortion: {num_steps: 5, distort_limit: 0.3, p: 0.2}
+  RandomBrightnessContrast: {brightness_limit: 0.2, contrast_limit: 0.2, p: 0.3}
+  RandomGamma:
+    gamma_limit: [70, 150]
+    p: 0.3
+  GaussNoise:
+    std_range: [0.01, 0.05]
+    p: 0.2
+  GaussianBlur:
+    blur_limit: [3, 7]
+    p: 0.2
+  CoarseDropout:
+    num_holes_range: [1, 8]
+    hole_height_range: [8, 24]
+    hole_width_range: [8, 24]
+    fill: 0
+    p: 0.2
+dataset:
+  type: slices_2_5d_mc
+  folds_dir: data/vessel_hr/folds
+  num_slices: 5
+  slice_axis: 2
+  num_classes: 37
+  min_fg_pixels: 1
+  slice_step: 1
+  lr_flip_p: 0.5
+  lr_flip_axis: 0
+  lr_swap_pairs:
+  - [2, 3]
+  - [4, 6]
+  - [5, 7]
+  - [8, 9]
+  - [11, 12]
+  - [13, 14]
+  - [17, 19]
+  - [18, 20]
+  - [21, 22]
+  - [23, 24]
+  - [25, 26]
+  - [27, 28]
+  - [29, 30]
+  - [31, 32]
+  - [33, 34]
+  - [35, 36]
+val_dataset: {type: slices_2_5d_mc, folds_dir: data/vessel_hr/folds, num_slices: 5, slice_axis: 2, num_classes: 37,
+  min_fg_pixels: 0, slice_step: 1}
+dataloader:
+  train: {batch_size: 12, num_workers: 8, shuffle: true, pin_memory: true, drop_last: true}
+  valid: {batch_size: 12, num_workers: 8, shuffle: false, pin_memory: true, drop_last: false}
+model: {type: model_v2_auxbin, arch: Unet, backbone: efficientnet-b3, encoder_weights: imagenet, in_channels: 5,
+  num_classes: 37}
+loss:
+  type: focal_tversky_ce
+  alpha: 0.2
+  beta: 0.8
+  gamma: 2.0
+  ce_weight: 0.2
+  dice_weight: 0.3
+  ft_weight: 0.5
+  include_background: false
+  class_weights: [0.2, 0.614, 0.817, 0.83, 0.708, 0.834, 0.697, 0.842, 2.646, 2.776, 3.27, 0.893, 0.88,
+    1.149, 1.211, 5.0, 5.0, 0.5, 0.7, 0.5, 0.678, 0.957, 1.05, 0.523, 0.5, 1.207, 1.233, 2.06, 2.119,
+    1.053, 1.061, 4.412, 4.004, 1.925, 1.84, 0.5, 0.5]
+  aux_weight: 0.3
+optimizer: {type: adamw, lr: 0.001, weight_decay: 0.0001}
+scheduler: {type: cosine, T_max: 50}
+lightning_module: {type: segmentation_vol_mc, num_classes: 37, dice_smooth: 1.0e-06, include_background: false}
+trainer: {num_epoch: 50, accelerator: auto, devices: 1, precision: 16-mixed, output_root_path: results/step2_vessel_2_5d,
+  exp_name: step2_vessel_2_5d_e50, monitor: val_dice, monitor_mode: max, save_top_k: 1, early_stopping: true,
+  early_stopping_patience: 20, log_every_n_steps: 20}
+debug: {enabled: false, max_samples: 50}

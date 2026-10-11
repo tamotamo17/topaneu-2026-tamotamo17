@@ -1,0 +1,88 @@
+[project]
+name = "topaneu26-aneurysm"
+version = "1.0.0"
+description = "Cerebral aneurysm detection, anatomical localisation and segmentation for the TopAneu-26 challenge"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.12,<3.13"
+
+dependencies = [
+    # Core ML
+    "scipy>=1.14.1",
+    "pandas>=2.0.2",
+    "torch>=2.8.0,<2.9.0",       # cu128 wheels: required for Blackwell (sm_120) GPUs
+    "torchvision>=0.23.0,<0.24.0",
+    "pytorch-lightning>=2.0.0",
+    "lightning>=2.0.0",
+    "torchmetrics>=1.0.0",
+    # Config & data
+    "omegaconf>=2.3.0",
+    "pyarrow<21",
+    # Medical image I/O
+    "nibabel>=5.3.3",
+    "SimpleITK>=2.5.5",
+    # Image processing
+    "opencv-python>=4.11.0.86",
+    "albumentations>=2.0.8",
+    "scikit-image>=0.25.2",
+    # Segmentation
+    "segmentation-models-pytorch>=0.5.0",
+    "monai>=1.6.0",
+    "timm>=1.0.24",
+    # Detection (Step1)
+    "transformers>=4.57.2,<5.0.0", # rfdetr requires transformers < 5.0.0
+    "rfdetr>=1.3.0",
+    # Utils
+    "tqdm>=4.67.0",
+    "matplotlib>=3.10.7",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.2.0",
+    "ruff>=0.14.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+
+[tool.uv]
+environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
+
+# Pull torch/torchvision from the PyTorch CUDA 12.8 index so Blackwell (sm_120)
+# GPUs get compatible kernels. Other packages still resolve from PyPI.
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu128" }]
+torchvision = [{ index = "pytorch-cu128" }]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "ruff>=0.14.0",
+]

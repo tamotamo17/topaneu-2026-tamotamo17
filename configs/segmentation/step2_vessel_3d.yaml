@@ -1,0 +1,75 @@
+# Step2 - 37-class vessel segmentation, true 3D (warm-start source for Step3; NOT shipped).
+#
+# MONAI SegResNet (init_filters 32), 128^3 patches, auxiliary binary head.
+# The trained encoder is the warm start of the Step3 aneurysm detector of the
+# same fold. Trained for folds 0, 1 and 2 (val_dice 0.776 / 0.768 / 0.767).
+#
+# Train: python scripts/train_segmentation.py --config configs/segmentation/step2_vessel_3d.yaml --fold {0,1,2}
+
+seed: 42
+deterministic: false
+preprocessing:
+  image_size: {x: 96, y: 96, mode: pad}
+  normalization:
+    type: percentile
+    percentile: {lower_percentile: 0.5, upper_percentile: 99.5}
+augmentation: {}
+dataset:
+  type: patches_3d
+  folds_dir: data/vessel_hr/folds
+  num_classes: 37
+  patch_size: 128
+  lower_percentile: 0.5
+  upper_percentile: 99.5
+  samples_per_volume: 8
+  fg_prob: 0.8
+  lr_flip_p: 0.5
+  lr_swap_pairs:
+  - [2, 3]
+  - [4, 6]
+  - [5, 7]
+  - [8, 9]
+  - [11, 12]
+  - [13, 14]
+  - [17, 19]
+  - [18, 20]
+  - [21, 22]
+  - [23, 24]
+  - [25, 26]
+  - [27, 28]
+  - [29, 30]
+  - [31, 32]
+  - [33, 34]
+  - [35, 36]
+  return_skeleton: true
+  intensity_shift: 0.1
+  intensity_scale: 0.1
+  noise_std: 0.02
+val_dataset: {type: patches_3d, folds_dir: data/vessel_hr/folds, num_classes: 37, patch_size: 128, lower_percentile: 0.5,
+  upper_percentile: 99.5, samples_per_volume: 1, return_skeleton: false}
+dataloader:
+  train: {batch_size: 2, num_workers: 6, shuffle: true, pin_memory: true, drop_last: true}
+  valid: {batch_size: 1, num_workers: 2, shuffle: false, pin_memory: true, drop_last: false}
+model: {type: monai_segresnet3d_auxbin, in_channels: 1, num_classes: 37, init_filters: 32}
+loss:
+  type: focal_tversky_ce
+  alpha: 0.2
+  beta: 0.8
+  gamma: 2.0
+  ce_weight: 0.2
+  dice_weight: 0.3
+  ft_weight: 0.5
+  skel_weight: 0.2
+  aux_weight: 0.3
+  include_background: false
+  class_weights: [0.2, 0.614, 0.817, 0.83, 0.708, 0.834, 0.697, 0.842, 2.646, 2.776, 3.27, 0.893, 0.88,
+    1.149, 1.211, 5.0, 5.0, 0.5, 0.7, 0.5, 0.678, 0.957, 1.05, 0.523, 0.5, 1.207, 1.233, 2.06, 2.119,
+    1.053, 1.061, 4.412, 4.004, 1.925, 1.84, 0.5, 0.5]
+optimizer: {type: adamw, lr: 0.001, weight_decay: 0.0001}
+scheduler: {type: cosine, T_max: 90}
+lightning_module: {type: segmentation_3d, num_classes: 37, roi_size: 128, sw_batch_size: 4, overlap: 0.25,
+  include_background: false}
+trainer: {num_epoch: 90, accelerator: auto, devices: 1, precision: bf16-mixed, output_root_path: results/step2_vessel_3d,
+  exp_name: step2_vessel_3d_segresnet, monitor: val_dice, monitor_mode: max, save_top_k: 1, early_stopping: true,
+  early_stopping_patience: 25, log_every_n_steps: 20}
+debug: {enabled: false, max_samples: 50}

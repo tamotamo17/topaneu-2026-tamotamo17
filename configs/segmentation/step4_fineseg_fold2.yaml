@@ -1,0 +1,47 @@
+# Step4 - fine aneurysm-shape segmentation / FP rejector, fold2. Submitted model (3/3).
+#
+# Same as step4_fineseg_fold0.yaml; crops cut around the detections of the
+# fold2 Step3 detector. Best val_dice 0.5969 (epoch 29).
+#
+# Train: python scripts/train_segmentation.py --config configs/segmentation/step4_fineseg_fold2.yaml --fold 2
+
+seed: 42
+deterministic: false
+preprocessing:
+  image_size: {x: 64, y: 64, mode: pad}
+  normalization:
+    type: percentile
+    percentile: {lower_percentile: 0.5, upper_percentile: 99.5}
+augmentation: {}
+dataset: {type: fineseg_crops, crops_dir: data/aneurysm_fineseg/fold2_sz64, num_classes: 2, lower_percentile: 0.5,
+  upper_percentile: 99.5, aux_max: 36.0, lr_flip_p: 0.5, intensity_shift: 0.1, intensity_scale: 0.1, noise_std: 0.02}
+val_dataset: {type: fineseg_crops, crops_dir: data/aneurysm_fineseg/fold2_sz64, num_classes: 2, lower_percentile: 0.5,
+  upper_percentile: 99.5, aux_max: 36.0}
+dataloader:
+  train: {batch_size: 16, num_workers: 8, shuffle: true, pin_memory: true, drop_last: true}
+  valid: {batch_size: 8, num_workers: 4, shuffle: false, pin_memory: true, drop_last: false}
+model:
+  type: monai_unet3d
+  in_channels: 2
+  num_classes: 2
+  channels: [32, 64, 128, 256, 320]
+  strides: [2, 2, 2, 2]
+  num_res_units: 2
+loss:
+  type: focal_tversky_ce
+  alpha: 0.5
+  beta: 0.5
+  gamma: 1.0
+  ce_weight: 0.3
+  dice_weight: 0.0
+  ft_weight: 0.7
+  include_background: false
+  class_weights: [1.0, 1.0]
+optimizer: {type: adamw, lr: 0.001, weight_decay: 0.0001}
+scheduler: {type: cosine, T_max: 100}
+lightning_module: {type: segmentation_3d, num_classes: 2, roi_size: 64, sw_batch_size: 4, overlap: 0.25,
+  include_background: false, dice_smooth: 1.0e-06}
+trainer: {num_epoch: 100, accelerator: auto, devices: 1, precision: bf16-mixed, output_root_path: results/step4_fineseg,
+  exp_name: step4_fineseg_reject, monitor: val_dice, monitor_mode: max, save_top_k: 1, early_stopping: true,
+  early_stopping_patience: 25, log_every_n_steps: 10}
+debug: {enabled: false, max_samples: 50}

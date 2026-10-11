@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Data and training outputs (scripts/run_pipeline.sh writes here)
+/data
+/results
+lightning_logs/
+*.ckpt
+*.pth
+*.npy
+*.nii.gz
+*.mha
+
+# Submission container artifacts (weights, local test I/O, saved images)
+docker/model/
+docker/test/
+docker/*.tar.gz
+docker/task*/*.tar.gz
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
